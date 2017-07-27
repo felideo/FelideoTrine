@@ -94,8 +94,16 @@ class QueryBuilder{
 		return $this;
 	}
 
-	public function where($where){
-		$this->where[] = $where;
+	public function where($where, $and_or = null){
+		if(empty($and_or) || ($and_or != 'AND' && $and_or != 'and' && $and_or != 'OR' && $and_or != 'or')){
+			$and_or = 'AND';
+		}
+
+		$this->where[] = [
+			$where,
+			strtoupper($and_or)
+		];
+
 		return $this;
 	}
 
@@ -215,7 +223,16 @@ class QueryBuilder{
 		}
 
 		if(!empty($this->where)){
-			$this->query .= " \nWHERE " . implode(' AND ', $this->where);
+
+			$this->query .= " \nWHERE " . $this->where[0][0];
+
+			foreach ($this->where as $indice => $where) {
+				if($indice == 0){
+					continue;
+				}
+
+				$this->query .= ' ' . $where[1] . ' ' . $where[0];
+			}
 		}
 
 		if(!empty($this->where_in) && !empty($this->where)){
@@ -300,12 +317,14 @@ class QueryBuilder{
 			}
 		}
 
+		// debug2($ordenado_por_tabela);
+		// exit;
+
+
 		foreach($this->join_on as $level) {
 			foreach ($ordenado_por_tabela[$level['table']] as $indice => $resultado){
 
-				if(!empty($resultado['join_on']['primary_from'])){
-					$index = $resultado['join_on']['primary_from'];
-				}
+				$index = $resultado['join_on']['primary_from'];
 
 				if(!empty($resultado['join_on']['foreign_father'])){
 					$index .= '__' . $resultado['join_on']['foreign_father'];
@@ -313,14 +332,6 @@ class QueryBuilder{
 
 				if(!empty($resultado['join_on']['foreign'])){
 					$index .= '__' . $resultado['join_on']['foreign'];
-				}
-
-				if(!isset($index) || empty($index)){
-					continue;
-				}
-
-				if(!isset($resultado['join_on']['table']) || empty($resultado['join_on']['table'])){
-					continue;
 				}
 
 				$tabela_join = $resultado['join_on']['table'];
