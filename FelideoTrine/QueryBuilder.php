@@ -300,14 +300,12 @@ class QueryBuilder{
 			}
 		}
 
-		// debug2($ordenado_por_tabela);
-		// exit;
-
-
 		foreach($this->join_on as $level) {
 			foreach ($ordenado_por_tabela[$level['table']] as $indice => $resultado){
 
-				$index = $resultado['join_on']['primary_from'];
+				if(!empty($resultado['join_on']['primary_from'])){
+					$index = $resultado['join_on']['primary_from'];
+				}
 
 				if(!empty($resultado['join_on']['foreign_father'])){
 					$index .= '__' . $resultado['join_on']['foreign_father'];
@@ -315,6 +313,14 @@ class QueryBuilder{
 
 				if(!empty($resultado['join_on']['foreign'])){
 					$index .= '__' . $resultado['join_on']['foreign'];
+				}
+
+				if(!isset($index) || empty($index)){
+					continue;
+				}
+
+				if(!isset($resultado['join_on']['table']) || empty($resultado['join_on']['table'])){
+					continue;
 				}
 
 				$tabela_join = $resultado['join_on']['table'];
