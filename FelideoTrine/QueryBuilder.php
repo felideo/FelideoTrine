@@ -323,6 +323,9 @@ class QueryBuilder{
 
 		foreach($this->join_on as $level) {
 			foreach ($ordenado_por_tabela[$level['table']] as $indice => $resultado){
+				if(!isset($resultado['join_on'])){
+					continue;
+				}
 
 				$index = $resultado['join_on']['primary_from'];
 
