@@ -1,25 +1,18 @@
 <?php
-namespace Felideo\FelideoTrine;
+namespace  Libs\QueryBuilder;
+
+// colocar comentado no sql em qual local do php esta sendo rodada a query!!!
 
 class QueryBuilder{
 
 	private $db;
 	private $select;
-	private $from;
 	private $query;
 	private $where          = [];
-	private $leftJoin       = [];
-	private $rightJoin      = [];
-	private $innerJoin      = [];
 	private $tables_x_alias = [];
 	private $join_on        = [];
-	private $select_array = [];
-	private $order_by;
-	private $limit;
 	private $first;
-	private $offset;
-	private $group_by;
-	private $where_in = [];
+	private $parametros = [];
 
 
 	public function __construct($db){
@@ -56,41 +49,41 @@ class QueryBuilder{
 			$this->tables_get_primary[$table_column[0]] = $table_column[0];
 		}
 
-		$this->select_array = $select;
+		$this->parametros['select'] = $select;
 
 		return $this;
 	}
 
 	public function orderBy($order_by){
-		$this->order_by = $order_by;
+		$this->parametros['order_by'] = $order_by;
 		return $this;
 	}
 
 	public function whereIn($where_in){
-		$this->where_in[] = $where_in;
+		$this->parametros['where_in'][] = $where_in;
 		return $this;
 	}
 
 	public function limit($limit){
-		$this->limit = $limit;
+		$this->parametros['limit'] = $limit;
 		return $this;
 	}
 
 	public function from($from){
 		$this->find_tables_name($from);
-		$this->from = explode(' ', $from);
+		$this->parametros['from'] = explode(' ', $from);
 
-		$this->join_on[$this->from[1]] = [
+		$this->join_on[$this->parametros['from'][1]] = [
 			'from_table' => 0,
 			'table'      => explode(' ', $from)[1],
-			'primary'    => $this->select_execute("SHOW KEYS FROM {$this->from[0]} WHERE Key_name = 'PRIMARY'")[0]['Column_name']
+			'primary'    => $this->execute_sql_query("SHOW KEYS FROM {$this->parametros['from'][0]} WHERE Key_name = 'PRIMARY'")[0]['Column_name']
 		];
 
 		return $this;
 	}
 
 	public function groupBy($group_by){
-		$this->group_by = $group_by;
+		$this->parametros['group_by'] = $group_by;
 		return $this;
 	}
 
@@ -99,7 +92,7 @@ class QueryBuilder{
 			$and_or = 'AND';
 		}
 
-		$this->where[] = [
+		$this->parametros['where'][] = [
 			$where,
 			strtoupper($and_or)
 		];
@@ -110,41 +103,55 @@ class QueryBuilder{
 	public function leftJoin($leftJoin){
 		$this->find_tables_name($leftJoin);
 		$this->find_join_on($leftJoin);
-		$this->leftJoin[] = $leftJoin;
+		$this->parametros['left_join'][] = $leftJoin;
 		return $this;
 	}
 
 	public function rightJoin($rightJoin){
 		$this->find_tables_name($rightJoin);
 		$this->find_join_on($rightJoin);
-		$this->rightJoin[] = $rightJoin;
+		$this->parametros['right_join'][] = $rightJoin;
 		return $this;
 	}
 
 	public function innerJoin($innerJoin){
 		$this->find_tables_name($innerJoin);
 		$this->find_join_on($innerJoin);
-		$this->innerJoin[] = $innerJoin;
+		$this->parametros['inner_join'][] = $innerJoin;
 		return $this;
 	}
 
 	public function offset($offset){
-		$this->offset = $offset;
+		$this->parametros['offset'] = $offset;
 		return $this;
 	}
 
 	public function fetchArray($first = null){
 		$this->first = $first;
-		$retorno =  $this->select_execute($this->getQuery());
+		$retorno =  $this->execute_sql_query($this->getQuery());
 
 		if($first == 'first'){
 			return $this->convert_to_tree($retorno);
 		}
 
-		return $this->convert_to_tree($retorno);
+		$return = $this->convert_to_tree($retorno);
+
+		$this->clean_class();
+
+		return $return;
 	}
 
-	private function select_execute($sql) {
+	private function clean_class(){
+		unset($this->select);
+		unset($this->query);
+		unset($this->where);
+		unset($this->tables_x_alias);
+		unset($this->join_on);
+		unset($this->first);
+		unset($this->parametros);
+	}
+
+	private function execute_sql_query($sql) {
 		$sth = $this->db->prepare($sql);
 
 		$retorno = [
@@ -163,7 +170,7 @@ class QueryBuilder{
 		return $sth->fetchAll(\PDO::FETCH_ASSOC);
 	}
 
-	public function getQuery(){
+	public function getSqlQuery(){
 		$this->build_query();
 
 
@@ -173,12 +180,12 @@ class QueryBuilder{
 
 	private function build_query(){
 		foreach ($this->join_on as $table) {
-			$this->select_array[] = $table['table'] . '.' . $table['primary'] . ' AS ' . $table['table'] . '__' . $table['primary'];
+			$this->parametros['select'][] = $table['table'] . '.' . $table['primary'] . ' AS ' . $table['table'] . '__' . $table['primary'];
 		}
 
 		$merge = [];
 
-		foreach ($this->select_array as $indice => $select){
+		foreach ($this->parametros['select'] as $indice => $select){
 			if(!stristr($select, '*')){
 				continue;
 			}
@@ -187,16 +194,16 @@ class QueryBuilder{
 
 			if(!empty($select_porra_toda)){
 				$this->process_select_all(explode('.', $select)[0], $select_porra_toda);
-				unset($this->select_array[$indice]);
+				unset($this->parametros['select'][$indice]);
 			}
 
 			$merge = array_merge($merge, $select_porra_toda);
 		}
 
-		$this->select_array = array_merge($this->select_array, $merge);
-		$this->select_array = array_unique($this->select_array);
+		$this->parametros['select'] = array_merge($this->parametros['select'], $merge);
+		$this->parametros['select'] = array_unique($this->parametros['select']);
 
-		$this->select = trim(str_replace("\t", '', str_replace("\n", '', preg_replace('!\s+!', ' ', implode(', ', $this->select_array)))));
+		$this->select = trim(str_replace("\t", '', str_replace("\n", '', preg_replace('!\s+!', ' ', implode(', ', $this->parametros['select'])))));
 
 		if(substr($this->select, -1) == ','){
 			$this->select = substr($this->select, 0, -1);
@@ -206,27 +213,27 @@ class QueryBuilder{
 			$this->query = 'SELECT ' . $this->select;
 		}
 
-		if(!empty($this->from)){
-			$this->query .= " \nFROM " . $this->from[0] . ' ' . $this->from[1];
+		if(!empty($this->parametros['from'])){
+			$this->query .= " \nFROM " . $this->parametros['from'][0] . ' ' . $this->parametros['from'][1];
 		}
 
-		if(!empty($this->leftJoin)){
-			$this->query .= " \nLEFT JOIN " . implode(" \nLEFT JOIN ", $this->leftJoin);
+		if(!empty($this->parametros['left_join'])){
+			$this->query .= " \nLEFT JOIN " . implode(" \nLEFT JOIN ", $this->parametros['left_join']);
 		}
 
-		if(!empty($this->rightJoin)){
-			$this->query .= " \nRIGHT JOIN " . implode(" \nRIGHT JOIN ", $this->rightJoin);
+		if(!empty($this->parametros['right_join'])){
+			$this->query .= " \nRIGHT JOIN " . implode(" \nRIGHT JOIN ", $this->parametros['right_join']);
 		}
 
-		if(!empty($this->innerJoin)){
-			$this->query .= " \nINNER JOIN " . implode(" \nINNER JOIN ", $this->innerJoin);
+		if(!empty($this->parametros['inner_join'])){
+			$this->query .= " \nINNER JOIN " . implode(" \nINNER JOIN ", $this->parametros['inner_join']);
 		}
 
-		if(!empty($this->where)){
+		if(!empty($this->parametros['where'])){
 
-			$this->query .= " \nWHERE " . $this->where[0][0];
+			$this->query .= " \nWHERE " . $this->parametros['where'][0][0];
 
-			foreach ($this->where as $indice => $where) {
+			foreach ($this->parametros['where'] as $indice => $where) {
 				if($indice == 0){
 					continue;
 				}
@@ -235,30 +242,30 @@ class QueryBuilder{
 			}
 		}
 
-		if(!empty($this->where_in) && !empty($this->where)){
-			$this->query .= " \nAND " . implode(' AND ', $this->where_in);
-		}elseif(!empty($this->where_in) && empty($this->where)){
-			$this->query .= " \nWHERE " . implode(' AND ', $this->where_in);
+		if(!empty($this->parametros['where_in']) && !empty($this->parametros['where'])){
+			$this->query .= " \nAND " . implode(' AND ', $this->parametros['where_in']);
+		}elseif(!empty($this->parametros['where_in']) && empty($this->parametros['where'])){
+			$this->query .= " \nWHERE " . implode(' AND ', $this->parametros['where_in']);
 		}
 
-		if(!empty($this->order_by)){
-			$this->query .= " \nORDER BY " . $this->order_by;
+		if(!empty($this->parametros['order_by'])){
+			$this->query .= " \nORDER BY " . $this->parametros['order_by'];
 		}
 
-		if(!empty($this->group_by)){
-			$this->query .= " \nGROUP BY " . $this->group_by;
+		if(!empty($this->parametros['group_by'])){
+			$this->query .= " \nGROUP BY " . $this->parametros['group_by'];
 		}
+
 
 		if(!empty($this->first)){
 			$this->query .= " \nLIMIT 1";
-		}elseif(!empty($this->limit)){
-			$this->query .= " \nLIMIT " . $this->limit;
+		}elseif(!empty($this->parametros['limit'])){
+			$this->query .= " \nLIMIT " . $this->parametros['limit'];
 		}
 
-		if(!empty($this->offset) && empty($this->first)){
-			$this->query .= " \nOFFSET " . $this->offset;
+		if(!empty($this->parametros['offset']) && empty($this->first)){
+			$this->query .= " \nOFFSET " . $this->parametros['offset'];
 		}
-
 	}
 
 	private function convert_to_tree($query){
@@ -283,7 +290,7 @@ class QueryBuilder{
 		$ordenado_por_tabela = [];
 
 		foreach($query as $indice_01 => $tabela) {
-			$primary_from = $this->from[1] . '__' . $this->join_on[$this->from[1]]['primary'];
+			$primary_from = $this->parametros['from'][1] . '__' . $this->join_on[$this->parametros['from'][1]]['primary'];
 
 			foreach ($tabela as $indice => $coluna) {
 				$tabela_x_coluna = explode('__', $indice);
@@ -352,7 +359,7 @@ class QueryBuilder{
 		$retorno = [];
 
 		foreach (array_values($ordenado_por_tabela[0]) as $resultado){
-			$retorno[] = $resultado[$this->from[0]][0];
+			$retorno[] = $resultado[$this->parametros['from'][0]][0];
 		}
 
 		return $retorno;
@@ -441,7 +448,7 @@ class QueryBuilder{
 
 	private function get_columns_name($table){
 
-		return $this->select_execute("SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}'");
+		return $this->execute_sql_query("SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}'");
 	}
 
 	private function process_select_all($table, &$selects){
@@ -466,7 +473,7 @@ class QueryBuilder{
 		$this->join_on[$join_table] = [
 			'from_table' => $from_table,
 			'table'      => $join_table,
-			'primary'    => $this->select_execute("SHOW KEYS FROM {$this->tables_x_alias[$join_table]} WHERE Key_name = 'PRIMARY'")[0]['Column_name']
+			'primary'    => $this->execute_sql_query("SHOW KEYS FROM {$this->tables_x_alias[$join_table]} WHERE Key_name = 'PRIMARY'")[0]['Column_name']
 		];
 	}
 
