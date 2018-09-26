@@ -13,6 +13,7 @@ class QueryBuilder{
 	private $first;
 	private $select = [];
 
+
 	private $parametros = [
 		'select'     => [],
 		'from'       => '',
@@ -138,7 +139,11 @@ class QueryBuilder{
 
 	private function tratar_select($select){
 		$select = trim(str_replace(' ', '', str_replace("\t", '', str_replace("\n", '', preg_replace('!\s+!', ' ', $select)))));
-		$select = rtrim($select, ',');
+
+		if(substr($select, -1) == ','){
+			$select = substr($select, 0, -1);
+		}
+
 		$select = explode(',', $select);
 
 		foreach ($select as &$item) {
@@ -666,7 +671,6 @@ class QueryBuilder{
 
 	private function try_get_select_columns($table){
 		$columns = $this->get_columns_name($table);
-
 		if (!empty($columns)) {
 			$retorno = [];
 
