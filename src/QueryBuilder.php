@@ -1,18 +1,17 @@
 <?php
 namespace  Libs\QueryBuilder;
-
 // colocar comentado no sql em qual local do php esta sendo rodada a query!!!
 
 class QueryBuilder{
 	private $db;
 
 	private $query;
+	private $first;
 	private $where          = [];
 	private $tables_x_alias = [];
 	private $join_on        = [];
-	private $first;
-	private $select = [];
-
+	private $select         = [];
+	private $total          = 0;
 
 	private $parametros = [
 		'select'     => [],
@@ -127,6 +126,8 @@ class QueryBuilder{
 		$this->build_query();
 		return $this->query;
 	}
+
+
 
 
 
@@ -253,17 +254,17 @@ class QueryBuilder{
 	public function fetchArray($first = null){
 		$this->first = $first;
 
-		$retorno =  $this->execute_sql_query($this->getQuery());
-
-		if($first == 'first'){
-			return $this->convert_to_tree($retorno);
-		}
-
-		$return = $this->convert_to_tree($retorno);
+		$retorno     = $this->execute_sql_query($this->getQuery());
+		$this->total = $this->execute_sql_query("SELECT FOUND_ROWS() AS total")[0]['total'];
+		$return      = $this->convert_to_tree($retorno);
 
 		$this->clean_class();
 
 		return $return;
+	}
+
+	public function count(){
+		return $this->total;
 	}
 
 	private function clean_class(){
@@ -286,10 +287,7 @@ class QueryBuilder{
 		];
 
 		if(isset($retorno[2][2]) && !empty($retorno[2][2])){
-			return [
-				'error' => $retorno[2],
-				'backtrace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS)
-			];
+			throw new \Fail($retorno[2][2], $retorno[2][1]);
 		}
 
 		return $sth->fetchAll(\PDO::FETCH_ASSOC);
@@ -397,7 +395,7 @@ class QueryBuilder{
 		}
 
 		if(!empty($this->select)){
-			$this->query = 'SELECT ' . $this->select;
+			$this->query = 'SELECT SQL_CALC_FOUND_ROWS ' . $this->select;
 		}
 
 		if(!empty($this->parametros['from'])){
@@ -438,8 +436,6 @@ class QueryBuilder{
 		if(!empty($this->parametros['order_by'])){
 			$this->query .= " \nORDER BY " . $this->parametros['order_by'];
 		}
-
-
 
 		if(!empty($this->first)){
 			$this->query .= " \nLIMIT 1";
@@ -548,11 +544,11 @@ class QueryBuilder{
 				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary][$tabela_x_coluna[1]]  = $coluna;
 				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']            = $this->join_on[$tabela_x_coluna[0]];
 				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']['primary'] = $tabela[$primary];
- 				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']['foreign']        = isset($foreign) ? $tabela[$foreign] : null;
- 				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']['foreign_father'] = isset($foreign_father) ? $tabela[$foreign_father] : null;
- 				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']['primary_from']   = $tabela[$primary_from];
+				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']['foreign']        = isset($foreign) ? $tabela[$foreign] : null;
+				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']['foreign_father'] = isset($foreign_father) ? $tabela[$foreign_father] : null;
+				$ordenado_por_tabela[$tabela_x_coluna[0]][$from_foreign_primary]['join_on']['primary_from']   = $tabela[$primary_from];
 
- 				unset($foreign);
+				unset($foreign);
 				unset($foreign_father);
 
 			}
@@ -641,32 +637,32 @@ class QueryBuilder{
 			$direcao = 'asc';
 		}
 
-	    $newarr = null;
-	    $sortcol = array();
-	    foreach ($array as $a) {
-	        $sortcol[$a[$coluna]][] = $a;
-	    };
-	    ksort($sortcol);
-	    foreach ($sortcol as $col) {
-	        foreach ($col as $row)
-	            $newarr[] = $row;
-	    }
+		$newarr = null;
+		$sortcol = array();
+		foreach ($array as $a) {
+			$sortcol[$a[$coluna]][] = $a;
+		};
+		ksort($sortcol);
+		foreach ($sortcol as $col) {
+			foreach ($col as $row)
+				$newarr[] = $row;
+		}
 
-	    if ($direcao == 'desc')
-	        if ($newarr) {
-	            $array = array_reverse($newarr);
-	        } else {
-	            $array = $newarr;
-	        } else
-	        $array = $newarr;
+		if ($direcao == 'desc')
+			if ($newarr) {
+				$array = array_reverse($newarr);
+			} else {
+				$array = $newarr;
+			} else
+			$array = $newarr;
 
-	    $rename_index = [];
+		$rename_index = [];
 
-	    foreach ($array as $item) {
-	    	$rename_index[$item['table']] = $item;
-	    }
+		foreach ($array as $item) {
+			$rename_index[$item['table']] = $item;
+		}
 
-	    $array = $rename_index;
+		$array = $rename_index;
 	}
 
 	private function try_get_select_columns($table){
@@ -698,31 +694,31 @@ class QueryBuilder{
 
 
 	private function replace_index_with_table_name($array) {
-	    if(!is_array($array)){
-	    	return $array;
-	    }
+		if(!is_array($array)){
+			return $array;
+		}
 
-    	$array_values = 0;
-    	$new_array = [];
+		$array_values = 0;
+		$new_array = [];
 
-	    	foreach($array as $indice => $value) {
-	    		if(is_numeric($indice)){
-	    			$new_array[$array_values] = $value;
-	    			$array_values++;
-	    		}else{
-	    			$new_array[$indice] = $value;
-	    		}
+			foreach($array as $indice => $value) {
+				if(is_numeric($indice)){
+					$new_array[$array_values] = $value;
+					$array_values++;
+				}else{
+					$new_array[$indice] = $value;
+				}
 
-	    	}
+			}
 
-	    $novo_array = array();
+		$novo_array = array();
 
-	    foreach ($new_array as $indice => $item) {
-	    	$novo_indice = isset($this->tables_x_alias[$indice]) ? $this->tables_x_alias[$indice] : $indice;
-	        $novo_array[$novo_indice] = $this->replace_index_with_table_name($item);
-	    }
+		foreach ($new_array as $indice => $item) {
+			$novo_indice = isset($this->tables_x_alias[$indice]) ? $this->tables_x_alias[$indice] : $indice;
+			$novo_array[$novo_indice] = $this->replace_index_with_table_name($item);
+		}
 
-	    return $novo_array;
+		return $novo_array;
 	}
 
 }

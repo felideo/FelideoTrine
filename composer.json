@@ -1,18 +1,17 @@
 {
-    "name": "felideotrine/query-builder",
+    "name": "felideo/felideo-trine",
     "description": "Query builder that return query result in a hierarchical tree",
     "license": "MIT",
-    "authors": [
-        {
-            "name": "Felideo Desittale Paravimnce",
-            "email": "felideo@gmail.com"
-        }
-    ],
-    "minimum-stability": "dev",
+	"authors": [
+		{
+			"name": "Felideo Desittale Paravimnce",
+			"email": "felideo@gmail.com"
+		}
+	],
     "require": {},
     "autoload": {
-        "psr-0": {
-            "Felideo\\FelideoTrine": "FelideoTrine/"
+        "psr-4": {
+            "Felideo\\FelideoTrine": "src/"
         }
     }
 }
