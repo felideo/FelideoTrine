@@ -2,6 +2,7 @@
     "name": "felideo/felideo-trine",
     "description": "Query builder that return query result in a hierarchical tree",
     "license": "MIT",
+    "minimum-stability": "dev",
 	"authors": [
 		{
 			"name": "Felideo Desittale Paravimnce",
