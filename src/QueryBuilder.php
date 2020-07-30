@@ -304,7 +304,7 @@ class QueryBuilder{
 			$sth->errorInfo()
 		];
 
-		if(isset($retorno[2][2]) && !empty($retorno[2][2])){
+		if(!empty($retorno[2][2])){
 			throw new \Fail($retorno[2][2], $retorno[2][1]);
 		}
 
@@ -317,7 +317,7 @@ class QueryBuilder{
 		$query = 'SELECT ' . $this->join_on[$this->parametros['from'][0]]['primary']
 			. ' FROM ' . $this->parametros['from'][0];
 
-		if(isset($this->parametros['where']) && !empty($this->parametros['where'])){
+		if(!empty($this->parametros['where'])){
 			foreach ($this->parametros['where'] as $indice => $where){
 				if(preg_match('/' . $this->parametros['from'][1] . '/', $where[0])){
 					$where_from[] = $where;
@@ -430,12 +430,12 @@ class QueryBuilder{
 			$this->query .= " \nINNER JOIN " . implode(" \nINNER JOIN ", $this->parametros['inner_join']);
 		}
 
-		if(isset($this->parametros['where']) && !empty($this->parametros['where'])){
+		if(!empty($this->parametros['where'])){
 			$where = $this->mount_where($this->parametros['where']);
 			$this->query .= $where;
 		}
 
-		if(isset($this->parametros['limit_from']) && !empty($this->parametros['limit_from'])){
+		if(!empty($this->parametros['limit_from'])){
 			$this->query .= $this->build_limit_from();
 		}
 
@@ -480,7 +480,7 @@ class QueryBuilder{
 		// 					. ' WHERE ' . implode(' AND ', $limit)
 		// 					. ' LIMIT ' . $this->parametros['limit'];
 
-		// 				if(isset($this->parametros['offset']) && !empty($this->parametros['offset'])){
+		// 				if(!empty($this->parametros['offset'])){
 		// 					$query_limit = ' OFFSET ' . $this->parametros['offset'];
 		// 				}
 
@@ -519,7 +519,7 @@ class QueryBuilder{
 			return null;
 		}
 
-		if(isset($query['error']) && !empty($query['error'])){
+		if(!empty($query['error'])){
 			return $query;
 		}
 
