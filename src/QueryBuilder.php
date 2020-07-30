@@ -139,15 +139,31 @@ class QueryBuilder{
 
 
 	private function tratar_select($select){
-		$select = trim(str_replace(' ', '', str_replace("\t", '', str_replace("\n", '', preg_replace('!\s+!', ' ', $select)))));
+		$select    = preg_replace('!\s+!', '', $select);
+		$functions = [];
 
-		if(substr($select, -1) == ','){
-			$select = substr($select, 0, -1);
+		preg_match_all('/\w+\(.*?\)/', $select, $functions);
+
+		$select_functions = [];
+
+		if(!empty($functions[0])){
+			$functions = $functions[0];
+			$select    = str_replace($functions, '', $select);
+
+			foreach($functions as $indice => $function){
+				preg_match('/\w+\.\w+/', $function, $coluna);
+				$select_functions[] = $function . ' AS ' . str_replace('.', '__', $coluna[0]);
+			}
 		}
 
 		$select = explode(',', $select);
 
 		foreach ($select as &$item) {
+			if(empty($item)){
+				unset($item);
+				continue;
+			}
+
 			$table_column = explode('.', $item);
 
 			if(!isset($table_column[1])){
@@ -163,7 +179,7 @@ class QueryBuilder{
 			$item = $table_column[0] . '.' . $table_column[1] . ' AS ' . $table_column[0] . '__' . $table_column[1];
 		}
 
-		return $select;
+		return array_filter(array_merge($select, $select_functions));
 	}
 
 	private function tratar_from($from){
@@ -199,7 +215,7 @@ class QueryBuilder{
 
 	private function tratar_limit_from($limit, $offset, $order){
 		if(!empty($offset)){
-			$offset = ($limit * $offset);
+			$offset *= $limit;
 		}
 
 		$this->parametros['limit_from']['limit']  = $limit;
@@ -225,7 +241,7 @@ class QueryBuilder{
 
 
 	private function find_tables_name($join){
-		$table = explode(' ', trim(preg_replace('!\s+!', ' ', $join)));
+		$table = explode(' ', preg_replace('!\s+!', ' ', trim($join)));
 
 		if(!isset($table[1])){
 			debug2('Obrigatorio o uso de ALIAS em todas as tabelas!');
@@ -255,6 +271,8 @@ class QueryBuilder{
 		$this->first = $first;
 
 		$retorno     = $this->execute_sql_query($this->getQuery());
+
+
 		$this->total = $this->execute_sql_query("SELECT FOUND_ROWS() AS total")[0]['total'];
 		$return      = $this->convert_to_tree($retorno);
 
@@ -277,7 +295,7 @@ class QueryBuilder{
 		unset($this->parametros);
 	}
 
-	private function execute_sql_query($sql) {
+	private function execute_sql_query($sql, $fetch_type = 'FETCH_ASSOC') {
 		$sth = $this->db->prepare($sql);
 
 		$retorno = [
@@ -290,7 +308,7 @@ class QueryBuilder{
 			throw new \Fail($retorno[2][2], $retorno[2][1]);
 		}
 
-		return $sth->fetchAll(\PDO::FETCH_ASSOC);
+		return $sth->fetchAll(constant("\PDO::" . $fetch_type));
 	}
 
 
@@ -370,7 +388,7 @@ class QueryBuilder{
 
 		$merge = [];
 
-		foreach ($this->parametros['select'] as $indice => $select){
+		foreach($this->parametros['select'] as $indice => $select){
 			if(!stristr($select, '*')){
 				continue;
 			}
@@ -382,17 +400,15 @@ class QueryBuilder{
 				unset($this->parametros['select'][$indice]);
 			}
 
-			$merge = array_merge($merge, $select_porra_toda);
+			foreach($select_porra_toda as $coluna) {
+				$merge[] = $coluna;
+			}
 		}
 
 		$this->parametros['select'] = array_merge($this->parametros['select'], $merge);
 		$this->parametros['select'] = array_unique($this->parametros['select']);
 
-		$this->select = trim(str_replace("\t", '', str_replace("\n", '', preg_replace('!\s+!', ' ', implode(', ', $this->parametros['select'])))));
-
-		if(substr($this->select, -1) == ','){
-			$this->select = substr($this->select, 0, -1);
-		}
+		$this->select = preg_replace('!\s+!', ' ', trim(implode(', ', $this->parametros['select']), ','));
 
 		if(!empty($this->select)){
 			$this->query = 'SELECT SQL_CALC_FOUND_ROWS ' . $this->select;
@@ -593,7 +609,7 @@ class QueryBuilder{
 
 		$retorno = [];
 
-		foreach (array_values($ordenado_por_tabela[0]) as $resultado){
+		foreach(array_values($ordenado_por_tabela[0]) as $resultado){
 			$retorno[] = $resultado[$this->parametros['from'][0]][0];
 		}
 
@@ -671,7 +687,7 @@ class QueryBuilder{
 			$retorno = [];
 
 			foreach ($columns as $column) {
-				$retorno[] = $column['column_name'];
+				$retorno[] = $column[0];
 			}
 
 			return $retorno;
@@ -680,7 +696,7 @@ class QueryBuilder{
 	}
 
 	private function get_columns_name($table){
-		return $this->execute_sql_query("SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}' AND TABLE_SCHEMA = '" . DB_NAME . "'");
+		return $this->execute_sql_query("SELECT column_name FROM information_schema.columns WHERE table_name = '{$table}' AND TABLE_SCHEMA = '" . DB_NAME . "'", 'FETCH_NUM');
 	}
 
 	private function process_select_all($table, &$selects){
@@ -704,7 +720,7 @@ class QueryBuilder{
 			foreach($array as $indice => $value) {
 				if(is_numeric($indice)){
 					$new_array[$array_values] = $value;
-					$array_values++;
+					++$array_values;
 				}else{
 					$new_array[$indice] = $value;
 				}

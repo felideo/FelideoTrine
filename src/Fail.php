@@ -29,9 +29,10 @@ class Fail extends \Exception{
     }
 
     public function show_error($exit = false){
+    	echo '<!DOCTYPE html><head><meta charset="UTF-8"></head>';
 	    echo "\n<pre style='width: 100%; z-index: 9999; position: relative;'>";
 	    echo "=============================== EXCEPTION =============================\n\n";
-        echo utf8_encode(print_r($this->error, true));
+        echo print_r($this->error, true);
 
 	    echo "\n";
 	    echo "</pre>";
