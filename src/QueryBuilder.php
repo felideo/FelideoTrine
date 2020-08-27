@@ -1,5 +1,5 @@
 <?php
-namespace  Felideo\FelideoTrine;
+namespace  Libs\QueryBuilder;
 // colocar comentado no sql em qual local do php esta sendo rodada a query!!!
 
 class QueryBuilder{
@@ -276,6 +276,10 @@ class QueryBuilder{
 		$this->total = $this->execute_sql_query("SELECT FOUND_ROWS() AS total")[0]['total'];
 		$return      = $this->convert_to_tree($retorno);
 
+		if(!empty($this->first) && !empty($return[0])){
+			$return = $return[0];
+		}
+
 		$this->clean_class();
 
 		return $return;
@@ -305,7 +309,7 @@ class QueryBuilder{
 		];
 
 		if(!empty($retorno[2][2])){
-			throw new \Fail($retorno[2][2], $retorno[2][1]);
+			throw new Fail($retorno[2][2], $retorno[2][1]);
 		}
 
 		return $sth->fetchAll(constant("\PDO::" . $fetch_type));
@@ -330,18 +334,23 @@ class QueryBuilder{
 			}
 		}
 
+		if(!empty($this->parametros['order_by'])){
+			$this->parametros['limit_from']['order'] = $this->parametros['order_by'];
+		}
+
 		if(!empty($this->parametros['limit_from']['order'])){
 			if(strtolower($this->parametros['limit_from']['order']) == 'rand()' || strtolower($this->parametros['limit_from']['order']) == 'rand'){
 				$query .= " ORDER BY RAND()";
 			}else{
-				$query .= " ORDER BY '{$this->parametros['limit_from']['order']}'";
+				$query .= " ORDER BY {$this->parametros['limit_from']['order']}";
 			}
 		}
 
-		$query .= ' LIMIT ' . $this->parametros['limit_from']['limit']
-			. ' OFFSET ' . $this->parametros['limit_from']['offset'];
+		$query .= ' LIMIT ' . $this->parametros['limit_from']['limit'];
+		$query .= ' OFFSET ' . $this->parametros['limit_from']['offset'];
 
 		$where = $this->execute_sql_query($query);
+
 		$cu = [];
 		if(!empty($where)){
 			foreach ($where as $indice => $item) {
@@ -618,7 +627,7 @@ class QueryBuilder{
 
 	private function get_height_nodes(){
 		$join_on = [];
-		$levels = 0;
+		$levels  = 0;
 
 		while(count($join_on) != count($this->join_on)) {
 			foreach ($this->join_on as $indice => $table) {
@@ -704,10 +713,6 @@ class QueryBuilder{
 			$select = $table . '.' . $select . ' AS ' . $table . '__' . $select;
 		}
 	}
-
-
-
-
 
 	private function replace_index_with_table_name($array) {
 		if(!is_array($array)){
