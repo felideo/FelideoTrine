@@ -1,6 +1,7 @@
 <?php
 namespace  Felideo\FelideoTrine;
 // colocar comentado no sql em qual local do php esta sendo rodada a query!!!
+// v1.0.3
 
 class QueryBuilder{
 	private $db;
