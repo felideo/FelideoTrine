@@ -1,5 +1,5 @@
 <?php
-namespace  Libs\QueryBuilder;
+namespace  Felideo\FelideoTrine;
 // colocar comentado no sql em qual local do php esta sendo rodada a query!!!
 
 class QueryBuilder{
@@ -318,8 +318,8 @@ class QueryBuilder{
 
 
 	private function build_limit_from(){
-		$query = 'SELECT ' . $this->join_on[$this->parametros['from'][0]]['primary']
-			. ' FROM ' . $this->parametros['from'][0];
+		$query = 'SELECT ' . $this->join_on[$this->parametros['from'][1]]['primary']
+			. ' FROM ' . $this->parametros['from'][0] . ' ' . $this->parametros['from'][1];
 
 		if(!empty($this->parametros['where'])){
 			foreach ($this->parametros['where'] as $indice => $where){
@@ -334,38 +334,27 @@ class QueryBuilder{
 			}
 		}
 
-		if(!empty($this->parametros['order_by'])){
-			$this->parametros['limit_from']['order'] = $this->parametros['order_by'];
-		}
-
 		if(!empty($this->parametros['limit_from']['order'])){
 			if(strtolower($this->parametros['limit_from']['order']) == 'rand()' || strtolower($this->parametros['limit_from']['order']) == 'rand'){
 				$query .= " ORDER BY RAND()";
 			}else{
-				$query .= " ORDER BY {$this->parametros['limit_from']['order']}";
+				$query .= " ORDER BY '{$this->parametros['limit_from']['order']}'";
 			}
 		}
 
-		$query .= ' LIMIT ' . $this->parametros['limit_from']['limit'];
-		$query .= ' OFFSET ' . $this->parametros['limit_from']['offset'];
+		$query .= ' LIMIT ' . $this->parametros['limit_from']['limit']
+			. ' OFFSET ' . $this->parametros['limit_from']['offset'];
 
 		$where = $this->execute_sql_query($query);
 
-		$cu = [];
 		if(!empty($where)){
-			foreach ($where as $indice => $item) {
-				$cu[] = $item['id'];
-			}
+			$where = array_column($where, 'id');
 		}
 
-		if(empty($cu)){
-			$cu[] = 9999999999999;
-		}
+		$where = implode(',', $where);
 
-		$cu = implode(',', $cu);
-
-		$query = $this->parametros['from'][1] . '.' . $this->join_on[$this->parametros['from'][0]]['primary']
-			. ' IN (' . $cu . ')';
+		$query = $this->parametros['from'][1] . '.' . $this->join_on[$this->parametros['from'][1]]['primary']
+			. ' IN (' . $where . ')';
 
 		$this->whereIn($query);
 
@@ -713,6 +702,10 @@ class QueryBuilder{
 			$select = $table . '.' . $select . ' AS ' . $table . '__' . $select;
 		}
 	}
+
+
+
+
 
 	private function replace_index_with_table_name($array) {
 		if(!is_array($array)){
