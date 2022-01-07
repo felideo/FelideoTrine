@@ -2,10 +2,14 @@
 namespace  Felideo\FelideoTrine;
 
 class Database extends \PDO {
+	public $query;
+
 	public function __construct($DB_TYPE, $DB_HOST, $DB_NAME, $DB_USER, $DB_PASS) {
 		try {
 			parent::__construct($DB_TYPE . ':host=' . $DB_HOST . ';dbname=' . $DB_NAME, $DB_USER, $DB_PASS);
 			parent::exec("SET CHARACTER SET utf8");
+
+			$this->query = new QueryBuilder($this);
 		} catch (\Fail $e) {
 			$e->show_error(true);
 		}
@@ -157,11 +161,11 @@ class Database extends \PDO {
 	}
 
 	public function pre_tratamento($sql) {
-		if (LOCALIZADO_QUERY) {
+		if (defined(LOCALIZADO_QUERY) && LOCALIZADO_QUERY) {
 			$sql = $this->get_localizador() . $sql;
 		}
 
-		if (PREVENT_CACHE) {
+		if (defined(PREVENT_CACHE) && PREVENT_CACHE) {
 			$prevent_cache = '/* ' . date('Y-m-d H:i:s') . '*/ ';
 			$sql           = $prevent_cache . $sql;
 		}
@@ -191,5 +195,44 @@ class Database extends \PDO {
 		}
 
 		return '/* ' . implode(' => ', $backtrace) . '*/ ';
+	}
+
+	public function insert_update($from, array $where, array $data, $update = false){
+		if(!empty($where)){
+			$this->query->select("{$from}.id")
+				->from("{$from} {$from}");
+
+			foreach ($where as $indice => $item) {
+				$this->query->where("{$from}.{$indice} =  '{$item}'", 'AND');
+			}
+
+			$registro_existe = $this->query->fetchArray();
+		}
+
+		if(empty($registro_existe[0]['id'])){
+			$retorno['operacao'] = 'insert';
+			$retorno            += $this->insert($from, $data);
+			return $retorno;
+		}
+
+		if(empty($update) && !empty($registro_existe[0]['id'])){
+			$retorno = [
+				'operacao'   => 'get',
+				'id'         => $registro_existe[0]['id'],
+				'status'     => true,
+				'error_code' => null,
+				'erros_info' => null,
+			];
+
+			return $retorno;
+		}
+
+		$retorno['operacao']    = 'update';
+		$retorno               += $this->update($from, $data, ['id' => $registro_existe[0]['id']]);
+		$retorno['id']          = $registro_existe[0]['id'];
+		$retorno['dados']['id'] = $registro_existe[0]['id'];
+
+
+		return $retorno;
 	}
 }
