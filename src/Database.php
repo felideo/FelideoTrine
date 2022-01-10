@@ -161,11 +161,11 @@ class Database extends \PDO {
 	}
 
 	public function pre_tratamento($sql) {
-		if (defined(LOCALIZADO_QUERY) && LOCALIZADO_QUERY) {
+		if (defined(LOCALIZADO_QUERY) && !empty(LOCALIZADO_QUERY)) {
 			$sql = $this->get_localizador() . $sql;
 		}
 
-		if (defined(PREVENT_CACHE) && PREVENT_CACHE) {
+		if (defined(PREVENT_CACHE) && !empty(PREVENT_CACHE)) {
 			$prevent_cache = '/* ' . date('Y-m-d H:i:s') . '*/ ';
 			$sql           = $prevent_cache . $sql;
 		}
